@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Path, Query, HTTPException, Depends
 from uuid import UUID
 from typing import Annotated
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
@@ -78,3 +78,43 @@ def delete_api(book_id: int, db: Session = Depends(get_db)):
         )
     db.query(models.Books).filter(models.Books.id == book_id).delete()
     db.commit()
+
+
+
+
+# Login User
+
+class UserBase(BaseModel):
+    username: str = Field(min_length=1, max_length=50)
+    email: EmailStr
+    full_name: str | None = None
+
+
+class UserIn(UserBase):
+    password: str
+
+
+class UserOut(UserBase):
+    pass
+
+
+class UserInDB(UserBase):
+    hashed_password: str
+
+
+def fake_password_hasher(raw_password: str):
+    return 'passwordid' + raw_password
+
+
+def fake_save_user(user_in: UserIn):
+    hasher_password = fake_password_hasher(user_in.password)
+    user_in_db = UserInDB(**user_in.dict(),
+                          hashed_password=hasher_password)
+    print('User saved')
+    return user_in_db
+
+
+@app.post("/user/", response_model=UserOut)
+async def create_user(user_in: UserIn):
+    user_saved = fake_save_user(user_in)
+    return user_saved
